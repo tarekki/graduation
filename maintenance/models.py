@@ -15,6 +15,26 @@ class MileageLog(models.Model):
         return f"{self.car} - {self.mileage} km"
 
 
+class MaintenanceReminder(models.Model):
+    """Date-based maintenance reminder (not driven by mileage accuracy)."""
+
+    car = models.ForeignKey(
+        "cars.Car",
+        on_delete=models.CASCADE,
+        related_name="maintenance_reminders",
+    )
+    title = models.CharField(max_length=120)
+    due_date = models.DateField()
+    notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("due_date",)
+
+    def __str__(self):
+        return f"{self.car} — {self.title} ({self.due_date})"
+
+
 class MaintenanceAppointmentStatus(models.TextChoices):
     PENDING = "pending", "Pending"
     CONFIRMED = "confirmed", "Confirmed"

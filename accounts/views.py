@@ -1,23 +1,45 @@
 from django.contrib.auth import authenticate
-from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
+from rest_framework import exceptions, status
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .serializers import LoginSerializer, RegisterSerializer
+from common.responses import success_response
+
+from .serializers import LoginSerializer, MeSerializer, RegisterSerializer
+
+
+def _tokens_for(user) -> dict[str, str]:
+    refresh = RefreshToken.for_user(user)
+    return {"access_token": str(refresh.access_token), "refresh_token": str(refresh)}
 
 
 class RegisterView(APIView):
+    """POST /api/accounts/register/ → returns tokens only."""
+
+    http_method_names = ["post"]
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        return Response(RegisterSerializer(user).data, status=status.HTTP_201_CREATED)
+        return success_response(
+            data=_tokens_for(user),
+            message="Account registered successfully",
+            status_code=status.HTTP_201_CREATED,
+        )
 
 
 class LoginView(APIView):
+    """POST /api/accounts/login/ → returns tokens only."""
+
+    http_method_names = ["post"]
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -28,37 +50,18 @@ class LoginView(APIView):
             password=serializer.validated_data["password"],
         )
         if not user:
-            return Response({"detail": "Invalid email or password."}, status=status.HTTP_401_UNAUTHORIZED)
+            raise exceptions.AuthenticationFailed("Invalid email or password")
 
-        refresh = RefreshToken.for_user(user)
-        return Response(
-            {
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
-                "user": {
-                    "id": user.id,
-                    "full_name": user.full_name,
-                    "email": user.email,
-                    "role": user.role,
-                    "phone_number": user.phone_number,
-                },
-            },
-            status=status.HTTP_200_OK,
-        )
+        return success_response(data=_tokens_for(user), message="Logged in successfully")
 
 
-class ProfileView(APIView):
+class MeView(APIView):
+    """POST /api/accounts/me/ → returns the current user's profile."""
+
+    http_method_names = ["post"]
     authentication_classes = [JWTAuthentication]
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        user = request.user
-        return Response(
-            {
-                "id": user.id,
-                "full_name": user.full_name,
-                "email": user.email,
-                "role": user.role,
-                "phone_number": user.phone_number,
-            }
-        )
+    def post(self, request):
+        serializer = MeSerializer(request.user)
+        return success_response(data=serializer.data, message="Profile fetched successfully")

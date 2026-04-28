@@ -7,13 +7,28 @@ class Car(models.Model):
         on_delete=models.CASCADE,
         related_name="cars",
     )
-    brand = models.CharField(max_length=100)
+    brand = models.ForeignKey(
+        "lookups.CarBrand",
+        on_delete=models.PROTECT,
+        related_name="cars",
+    )
     model = models.CharField(max_length=100)
     year = models.PositiveIntegerField()
     plate_number = models.CharField(max_length=30, unique=True)
-    color = models.CharField(max_length=50, blank=True, null=True)
-    mileage = models.PositiveIntegerField()
+    color = models.ForeignKey(
+        "lookups.CarColor",
+        on_delete=models.SET_NULL,
+        related_name="cars",
+        blank=True,
+        null=True,
+    )
+    mileage = models.PositiveIntegerField(
+        help_text="Odometer reading for display/optional tracking only. Do not use for maintenance reminders—use date-based reminders instead.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        ordering = ["-created_at"]
+
     def __str__(self):
-        return f"{self.brand} {self.model} ({self.plate_number})"
+        return f"{self.brand.name} {self.model} ({self.plate_number})"
