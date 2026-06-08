@@ -7,7 +7,12 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from common.responses import success_response
 
-from .serializers import LoginSerializer, MeSerializer, RegisterSerializer
+from .serializers import (
+    LoginSerializer,
+    MeSerializer,
+    RefreshTokenSerializer,
+    RegisterSerializer,
+)
 
 
 def _tokens_for(user) -> dict[str, str]:
@@ -53,6 +58,27 @@ class LoginView(APIView):
             raise exceptions.AuthenticationFailed("Invalid email or password")
 
         return success_response(data=_tokens_for(user), message="Logged in successfully")
+
+
+class RefreshTokenView(APIView):
+    """POST /api/accounts/token/refresh/ → returns a fresh access token.
+
+    Body: {"refreshToken": "<token>"}. Returns a new access token (and a new
+    refresh token when rotation is enabled). An invalid/expired refresh token
+    yields a 401 with code AUTHENTICATION_FAILED.
+    """
+
+    http_method_names = ["post"]
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = RefreshTokenSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return success_response(
+            data=serializer.validated_data,
+            message="Token refreshed successfully",
+        )
 
 
 class MeView(APIView):

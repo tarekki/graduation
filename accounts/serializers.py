@@ -1,6 +1,9 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
+from rest_framework_simplejwt.settings import api_settings as jwt_settings
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from lookups.models import Role
 from lookups.serializers import RoleMiniSerializer
@@ -64,6 +67,42 @@ class RegisterSerializer(serializers.Serializer):
 class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True)
+
+
+class RefreshTokenSerializer(serializers.Serializer):
+    """Exchanges a valid refresh token for a fresh access token.
+
+    Honors project JWT settings: when `ROTATE_REFRESH_TOKENS` is on we also
+    issue a new refresh token (and blacklist the old one if configured),
+    mirroring SimpleJWT's own refresh flow while keeping our `*_token` keys.
+    """
+
+    refresh_token = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        try:
+            refresh = RefreshToken(attrs["refresh_token"])
+        except TokenError as exc:
+            # Surfaces as AUTHENTICATION_FAILED via the custom exception handler.
+            raise InvalidToken("Refresh token is invalid or expired.") from exc
+
+        data = {"access_token": str(refresh.access_token)}
+
+        if jwt_settings.ROTATE_REFRESH_TOKENS:
+            if jwt_settings.BLACKLIST_AFTER_ROTATION:
+                try:
+                    refresh.blacklist()
+                except AttributeError:
+                    # Blacklist app not installed; rotation without blacklisting.
+                    pass
+            refresh.set_jti()
+            refresh.set_exp()
+            refresh.set_iat()
+            data["refresh_token"] = str(refresh)
+        else:
+            data["refresh_token"] = attrs["refresh_token"]
+
+        return data
 
 
 class MeSerializer(serializers.ModelSerializer):
