@@ -12,6 +12,9 @@ venv/
 # Environment variables
 .env
 
+# Local-only Docker overrides (per-machine ports/project name)
+docker-compose.override.yml
+
 # Django
 staticfiles/
 media/

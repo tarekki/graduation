@@ -1,3 +1,7 @@
+# Stable project name so the directory name ("backend") can't collide with
+# other Compose projects on the same machine.
+name: carnova
+
 services:
   db:
     image: postgres:16
@@ -10,7 +14,9 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      # Host port is configurable (default 5432) to avoid clashes with a
+      # native PostgreSQL or another project; container port stays 5432.
+      - "${DB_HOST_PORT:-5432}:5432"
 
   backend:
     build: .
@@ -24,7 +30,8 @@ services:
     depends_on:
       - db
     ports:
-      - "8000:8000"
+      # Host port is configurable (default 8000); container port stays 8000.
+      - "${WEB_HOST_PORT:-8000}:8000"
 
 volumes:
   postgres_data:
