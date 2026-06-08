@@ -1,11 +1,11 @@
-from common.views import BaseListAPIView
+from common.views import BaseSimpleListAPIView
 
 from .models import CarBrand, CarColor, Role
 from .serializers import BrandMiniSerializer, ColorMiniSerializer, RoleMiniSerializer
 
 
-class RoleListView(BaseListAPIView):
-    """POST /api/lookups/roles/list/"""
+class RoleListView(BaseSimpleListAPIView):
+    """POST /api/lookups/roles/list/ → all roles (unpaginated)."""
 
     serializer_class = RoleMiniSerializer
     list_success_message = "Roles fetched successfully"
@@ -14,8 +14,8 @@ class RoleListView(BaseListAPIView):
         return Role.objects.all().order_by("code")
 
 
-class CarBrandListView(BaseListAPIView):
-    """POST /api/lookups/brands/list/"""
+class CarBrandListView(BaseSimpleListAPIView):
+    """POST /api/lookups/brands/list/ → all brands (unpaginated)."""
 
     serializer_class = BrandMiniSerializer
     list_success_message = "Brands fetched successfully"
@@ -24,8 +24,8 @@ class CarBrandListView(BaseListAPIView):
         return CarBrand.objects.all().order_by("name")
 
 
-class CarColorListView(BaseListAPIView):
-    """POST /api/lookups/colors/list/"""
+class CarColorListView(BaseSimpleListAPIView):
+    """POST /api/lookups/colors/list/ → all colors (unpaginated)."""
 
     serializer_class = ColorMiniSerializer
     list_success_message = "Colors fetched successfully"

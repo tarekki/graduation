@@ -78,6 +78,40 @@ class BaseListAPIView(BasePostAPIView):
         )
 
 
+class BaseSimpleListAPIView(BasePostAPIView):
+    """POST /<resource>/list/ → full, unpaginated list.
+
+    For small, bounded sets (e.g. lookups) where pagination adds no value:
+    `data` is the flat array of items, with no page/pageSize metadata.
+    """
+
+    list_success_message = "Fetched successfully"
+
+    def post(self, request, *args, **kwargs) -> Response:
+        serializer = self.get_serializer(self.get_queryset(), many=True)
+        return success_response(
+            data=serializer.data,
+            message=self.list_success_message,
+        )
+
+
+class BaseSimpleListAPIView(BasePostAPIView):
+    """POST /<resource>/list/ → full, unpaginated list in the standard envelope.
+
+    `data` is a flat array of items. Use for small, bounded sets (e.g. lookups)
+    where pagination adds no value; prefer `BaseListAPIView` for large datasets.
+    """
+
+    list_success_message = "Fetched successfully"
+
+    def post(self, request, *args, **kwargs) -> Response:
+        serializer = self.get_serializer(self.get_queryset(), many=True)
+        return success_response(
+            data=serializer.data,
+            message=self.list_success_message,
+        )
+
+
 class _ObjectByIdMixin:
     """Shared helper: parse `id` from body and fetch from queryset."""
 
