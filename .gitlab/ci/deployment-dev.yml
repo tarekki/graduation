@@ -32,20 +32,23 @@ deploy-dev:
     - echo "Preparing directories and environment file on the server..."
     - ssh $SERVER_USER@$SERVER_IP "mkdir -p ~/carnova"
 
-    # هنا نقوم بكتابة المحتوى الأساسي ثم إضافة البورت 5004 مباشرة أسفله
+    # نقوم بكتابة المحتوى الأساسي، ثم نعدل الـ DB_PORT الداخلي ليكون 5432، ونضيف بورتات المضيف الخارجي
     - echo "$ENV_FILE_CONTENT" > .env
+    - sed -i 's/DB_PORT=5435/DB_PORT=5432/g' .env # لتصحيح اتصال دجانغو الداخلي
     - echo "WEB_HOST_PORT=5004" >> .env
+    - echo "DB_HOST_PORT=5435" >> .env
     - scp .env $SERVER_USER@$SERVER_IP:~/carnova/.env
 
     # 3. Transfer docker-compose.yml to the server
     - echo "Transferring docker-compose.yml..."
     - scp docker-compose.yml $SERVER_USER@$SERVER_IP:~/carnova/docker-compose.yml
 
+    # 4. Stream Docker Image to server, load it, and restart containers via compose
     - echo "Transferring image and deploying via docker-compose..."
     - |
       docker save $IMAGE_NAME | gzip | ssh $SERVER_USER@$SERVER_IP "
         gunzip | docker load &&
         cd ~/carnova &&
         docker compose down || true &&
-        WEB_HOST_PORT=5004 docker compose up -d
+        WEB_HOST_PORT=5004 DB_HOST_PORT=5435 docker compose up -d
       "
