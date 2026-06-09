@@ -28,13 +28,13 @@ deploy-dev:
     - echo "Building the Django Docker image..."
     - docker build -t $IMAGE_NAME .
 
-    # 2. Preparation on Remote Server (Create project folder and .env)
+    # 2. Preparation on Remote Server
     - echo "Preparing directories and environment file on the server..."
     - ssh $SERVER_USER@$SERVER_IP "mkdir -p ~/carnova"
 
-    # نقوم بكتابة المحتوى الأساسي، ثم نعدل الـ DB_PORT الداخلي ليكون 5432، ونضيف بورتات المضيف الخارجي
+    # تنظيف وتجهيز ملف الـ .env بشكل مباشر ومضمون
     - echo "$ENV_FILE_CONTENT" > .env
-    - sed -i 's/DB_PORT=5435/DB_PORT=5432/g' .env # لتصحيح اتصال دجانغو الداخلي
+    - sed -i 's/DB_PORT=5435/DB_PORT=5432/g' .env
     - echo "WEB_HOST_PORT=5004" >> .env
     - echo "DB_HOST_PORT=5435" >> .env
     - scp .env $SERVER_USER@$SERVER_IP:~/carnova/.env
@@ -43,12 +43,18 @@ deploy-dev:
     - echo "Transferring docker-compose.yml..."
     - scp docker-compose.yml $SERVER_USER@$SERVER_IP:~/carnova/docker-compose.yml
 
-    # 4. Stream Docker Image to server, load it,and restart containers via compose
+    # 4. Deploy and wait for Database to ensure Django won't crash
     - echo "Transferring image and deploying via docker-compose..."
     - |
       docker save $IMAGE_NAME | gzip | ssh $SERVER_USER@$SERVER_IP "
         gunzip | docker load &&
         cd ~/carnova &&
         docker compose down || true &&
-        WEB_HOST_PORT=5004 DB_HOST_PORT=5435 docker compose up -d
+        
+        # تشغيل قاعدة البيانات أولاً وانتظارها 5 ثوانٍ حتى تستقر
+        WEB_HOST_PORT=5004 DB_HOST_PORT=5435 docker compose up -d db &&
+        sleep 5 &&
+        
+        # تشغيل الـ backend الآن بأمان
+        WEB_HOST_PORT=5004 DB_HOST_PORT=5435 docker compose up -d backend
       "
