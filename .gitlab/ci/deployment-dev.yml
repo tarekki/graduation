@@ -8,13 +8,13 @@ deploy-dev:
   variables:
     DOCKER_TLS_CERTDIR: ""
     DOCKER_HOST: "tcp://docker:2375"
-    IMAGE_NAME: "shamcashreport:test"
+    IMAGE_NAME: "carnova-backend:latest"
 
   only:
     - dev
 
   before_script:
-    - apk add --no-cache openssh-client
+    - apk add --no-cache openssh-client rsync
     - eval $(ssh-agent -s)
     - echo "$SERVER_PRIVATE_KEY" | tr -d '\r' | ssh-add -
     - mkdir -p ~/.ssh
@@ -24,27 +24,29 @@ deploy-dev:
     - chmod 644 ~/.ssh/known_hosts
 
   script:
-    # Create env file
-    - echo "$ENV_FILE_CONTENT" > .env.production.local
+    # 1. Build Django Backend Docker image
+    - echo "Building the Django Docker image..."
+    - docker build -t $IMAGE_NAME .
 
-    # Build Docker image
-    - echo "Building the Docker image..."
-    - |
-      docker build \
-      --build-arg ENV_FILE=.env.production.local \
-      -t $IMAGE_NAME \
-      .
+    # 2. Preparation on Remote Server (Create project folder and .env)
+    - echo "Preparing directories and environment file on the server..."
+    - ssh $SERVER_USER@$SERVER_IP "mkdir -p ~/carnova"
 
-    # Stream image directly to server and deploy
-    - echo "Transferring and deploying..."
+    # هنا نقوم بكتابة المحتوى الأساسي ثم إضافة البورت 5004 مباشرة أسفله
+    - echo "$ENV_FILE_CONTENT" > .env
+    - echo "WEB_HOST_PORT=5004" >> .env
+    - scp .env $SERVER_USER@$SERVER_IP:~/carnova/.env
+
+    # 3. Transfer docker-compose.yml to the server
+    - echo "Transferring docker-compose.yml..."
+    - scp docker-compose.yml $SERVER_USER@$SERVER_IP:~/carnova/docker-compose.yml
+
+    # 4. Stream Docker Image to server, load it, and restart containers via compose
+    - echo "Transferring image and deploying via docker-compose..."
     - |
       docker save $IMAGE_NAME | gzip | ssh $SERVER_USER@$SERVER_IP "
-      gunzip | docker load &&
-        docker stop shamcash_report_prod_container || true &&
-        docker rm shamcash_report_prod_container || true &&
-        docker run -d \
-          --name shamcash_report_prod_container \
-          -p 5004:8000 \
-          --restart unless-stopped \
-          $IMAGE_NAME
+        gunzip | docker load &&
+        cd ~/carnova &&
+        docker compose down || true &&
+        WEB_HOST_PORT=5004 docker compose up -d
       "
