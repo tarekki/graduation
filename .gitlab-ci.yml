@@ -1,0 +1,5 @@
+stages:
+  - deploy
+
+include:
+  - local: ".gitlab/ci/deployment-dev.yml"
