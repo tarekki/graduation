@@ -39,10 +39,10 @@ deploy-dev:
     - echo "DB_HOST_PORT=5435" >> .env
     - scp .env $SERVER_USER@$SERVER_IP:~/carnova/.env
 
-    # 3. Transfer and Patch docker-compose.yml to remove local volumes
+    # 3. Transfer and Patch docker-compose.yml to remove local volumes completely
     - echo "Patching and transferring docker-compose.yml..."
-    # هذا الأمر يقوم بحذف سطر الـ volumes الخاص بالـ backend لمنع مسح ملفات التطبيق داخل الحاوية على السيرفر
-    - sed -i '/-\s\.:\/app/d' docker-compose.yml
+    # هذا الأمر الجديد يبحث عن كلمة volumes ويحذفها مع السطر الذي يليه (الخاص بـ .:/app) تماماً لكي لا يترك القائمة فارغة
+    - sed -i '/volumes:/,+1d' docker-compose.yml
     - scp docker-compose.yml $SERVER_USER@$SERVER_IP:~/carnova/docker-compose.yml
 
     # 4. Deploy
@@ -53,8 +53,10 @@ deploy-dev:
         cd ~/carnova &&
         docker compose down || true &&
         
+        # تشغيل قاعدة البيانات أولاً وانتظارها
         WEB_HOST_PORT=5004 DB_HOST_PORT=5435 docker compose up -d db &&
         sleep 5 &&
         
+        # تشغيل الـ backend الآن بأمان
         WEB_HOST_PORT=5004 DB_HOST_PORT=5435 docker compose up -d backend
       "
