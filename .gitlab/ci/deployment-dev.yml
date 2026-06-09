@@ -44,7 +44,7 @@ deploy-dev:
         docker rm shamcash_report_prod_container || true &&
         docker run -d \
           --name shamcash_report_prod_container \
-          -p 5004:3000 \
+          -p 5004:8000 \
           --restart unless-stopped \
           $IMAGE_NAME
       "
