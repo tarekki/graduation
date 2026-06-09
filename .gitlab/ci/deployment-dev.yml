@@ -32,18 +32,20 @@ deploy-dev:
     - echo "Preparing directories and environment file on the server..."
     - ssh $SERVER_USER@$SERVER_IP "mkdir -p ~/carnova"
 
-    # تنظيف وتجهيز ملف الـ .env بشكل مباشر ومضمون
+    # تجهيز ملف الـ .env وتصحيح البورتات
     - echo "$ENV_FILE_CONTENT" > .env
     - sed -i 's/DB_PORT=5435/DB_PORT=5432/g' .env
     - echo "WEB_HOST_PORT=5004" >> .env
     - echo "DB_HOST_PORT=5435" >> .env
     - scp .env $SERVER_USER@$SERVER_IP:~/carnova/.env
 
-    # 3. Transfer docker-compose.yml to the server
-    - echo "Transferring docker-compose.yml..."
+    # 3. Transfer and Patch docker-compose.yml to remove local volumes
+    - echo "Patching and transferring docker-compose.yml..."
+    # هذا الأمر يقوم بحذف سطر الـ volumes الخاص بالـ backend لمنع مسح ملفات التطبيق داخل الحاوية على السيرفر
+    - sed -i '/-\s\.:\/app/d' docker-compose.yml
     - scp docker-compose.yml $SERVER_USER@$SERVER_IP:~/carnova/docker-compose.yml
 
-    # 4. Deploy and wait for Database to ensure Django won't crash
+    # 4. Deploy
     - echo "Transferring image and deploying via docker-compose..."
     - |
       docker save $IMAGE_NAME | gzip | ssh $SERVER_USER@$SERVER_IP "
@@ -51,10 +53,8 @@ deploy-dev:
         cd ~/carnova &&
         docker compose down || true &&
         
-        # تشغيل قاعدة البيانات أولاً وانتظارها 5 ثوانٍ حتى تستقر
         WEB_HOST_PORT=5004 DB_HOST_PORT=5435 docker compose up -d db &&
         sleep 5 &&
         
-        # تشغيل الـ backend الآن بأمان
         WEB_HOST_PORT=5004 DB_HOST_PORT=5435 docker compose up -d backend
       "
