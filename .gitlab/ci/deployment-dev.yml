@@ -41,7 +41,6 @@ deploy-dev:
     - echo "Transferring docker-compose.yml..."
     - scp docker-compose.yml $SERVER_USER@$SERVER_IP:~/carnova/docker-compose.yml
 
-    # 4. Stream Docker Image to server, load it, and restart containers via compose
     - echo "Transferring image and deploying via docker-compose..."
     - |
       docker save $IMAGE_NAME | gzip | ssh $SERVER_USER@$SERVER_IP "
